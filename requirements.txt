@@ -1,3 +1,18 @@
-streamlit==1.39.0  # Update this to your installed Streamlit version
-Pillow>=7.1.0,<10.0.0  # Compatible version of Pillow
-google-generativeai==0.1.0  # Adjust the version if necessary
+# Core web application
+streamlit==1.32.0
+
+# Image processing
+Pillow==10.2.0
+opencv-python==4.9.0.80
+numpy==1.26.4
+
+# Environment variables
+python-dotenv==1.0.1
+
+# HTTP requests (for API integration)
+requests==2.31.0
+
+# Optional - for additional features
+pandas==2.2.1  # For data manipulation if needed
+plotly==5.19.0  # For interactive visualizations
+scikit-image==0.22.0  # For advanced image processing
