@@ -27,7 +27,7 @@ if 'language' not in st.session_state:
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="Advanced Food Analysis",
+    page_title="Food Analysis",
     page_icon="🍽️",
     layout="wide",
     initial_sidebar_state="expanded"
