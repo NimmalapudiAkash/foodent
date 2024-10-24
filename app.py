@@ -33,8 +33,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Enhanced Custom CSS with dark mode support
 def get_css():
+    """Return custom CSS styling based on dark mode setting"""
     return f"""
     <style>
     /* Main theme variables */
@@ -103,15 +103,44 @@ def get_css():
     </style>
     """
 
+def process_image(image_input):
+    """Process the uploaded image or camera input"""
+    if image_input is None:
+        return None
+        
+    try:
+        # Convert the uploaded file to bytes
+        image_bytes = image_input.getvalue()
+        
+        # Open the image using PIL
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Convert image to RGB mode if it's not
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+            
+        # Resize image if it's too large
+        max_size = 1024
+        if max(image.size) > max_size:
+            ratio = max_size / max(image.size)
+            new_size = tuple(int(dim * ratio) for dim in image.size)
+            image = image.resize(new_size, Image.Resampling.LANCZOS)
+            
+        return image
+        
+    except Exception as e:
+        st.error(f"Error processing image: {str(e)}")
+        return None
+
 class FoodAnalyzer:
     def __init__(self):
         self.api_key = os.getenv('FOOD_API_KEY', 'default_key')
         
     def analyze_image(self, image):
         """Enhanced food analysis with more detailed metrics"""
-        time.sleep(2)
+        time.sleep(2)  # Simulating API call
         
-        # Enhanced mock response with more detailed information
+        # Mock response with detailed information
         return {
             "name": "Detected Food Item",
             "calories": 250,
@@ -141,7 +170,7 @@ class FoodAnalyzer:
 
 def create_nutrition_radar_chart(nutrients):
     """Create a radar chart for nutritional information"""
-    categories = list(nutrients.keys())[:5]
+    categories = list(nutrients.keys())[:5]  # First 5 nutrients
     values = [float(str(nutrients[cat]).rstrip('g%')) for cat in categories]
     
     fig = go.Figure(data=go.Scatterpolar(
@@ -244,10 +273,10 @@ def main():
                 # Process and analyze image
                 image = process_image(image_input)
                 if image:
-                    st.image(image, caption="", use_column_width=True)
+                    st.image(image, caption="Processed Image", use_column_width=True)
                     
                     with st.spinner("Analyzing your food..."):
-                        analyzer = AdvancedFoodAnalyzer()
+                        analyzer = FoodAnalyzer()
                         results = analyzer.analyze_image(image)
                         
                         # Store in history
@@ -379,17 +408,4 @@ def main():
             with st.expander("🥑 Common Foods Nutrition Facts"):
                 st.markdown("""
                     - Banana (105 calories, 27g carbs)
-                    - Apple (95 calories, 25g carbs)
-                    - Chicken Breast (165 calories, 31g protein)
-                """)
-        
-        with col2:
-            with st.expander("🏃‍♂️ Exercise Equivalents"):
-                st.markdown("""
-                    - 100 calories = 20 min walking
-                    - 200 calories = 30 min cycling
-                    - 300 calories = 30 min running
-                """)
-
-if __name__ == "__main__":
-    main()
+                    - Apple (95 calories, 25g
