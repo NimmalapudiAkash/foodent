@@ -1,5 +1,4 @@
 import streamlit as st
-import cv2
 import numpy as np
 from PIL import Image
 import io
@@ -68,6 +67,15 @@ class FoodAnalyzer:
             "healthScore": 85
         }
 
+def process_image(image_data):
+    """Process image using PIL instead of OpenCV"""
+    try:
+        image = Image.open(image_data)
+        return image
+    except Exception as e:
+        st.error(f"Error processing image: {str(e)}")
+        return None
+
 def main():
     st.title("🍽️ Food Analysis App")
     
@@ -87,13 +95,13 @@ def main():
         
         if camera_input:
             try:
-                # Process the camera input
-                image = Image.open(camera_input)
-                st.image(image, caption="Captured Image", use_column_width=True)
-                
-                with st.spinner('Analyzing food...'):
-                    results = analyzer.analyze_image(image)
-                st.session_state.analysis_results = results
+                image = process_image(camera_input)
+                if image:
+                    st.image(image, caption="Captured Image", use_column_width=True)
+                    
+                    with st.spinner('Analyzing food...'):
+                        results = analyzer.analyze_image(image)
+                    st.session_state.analysis_results = results
                 
             except Exception as e:
                 st.error(f"Error processing image: {str(e)}")
@@ -108,13 +116,13 @@ def main():
         
         if uploaded_file:
             try:
-                # Process the uploaded file
-                image = Image.open(uploaded_file)
-                st.image(image, caption="Uploaded Image", use_column_width=True)
-                
-                with st.spinner('Analyzing food...'):
-                    results = analyzer.analyze_image(image)
-                st.session_state.analysis_results = results
+                image = process_image(uploaded_file)
+                if image:
+                    st.image(image, caption="Uploaded Image", use_column_width=True)
+                    
+                    with st.spinner('Analyzing food...'):
+                        results = analyzer.analyze_image(image)
+                    st.session_state.analysis_results = results
                 
             except Exception as e:
                 st.error(f"Error processing image: {str(e)}")
