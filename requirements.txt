@@ -1,0 +1,3 @@
+streamlit==1.25.0  # or the latest version you're using
+Pillow==10.0.0  # For image processing
+google-generativeai==0.1.0  # For the Gemini AI model
