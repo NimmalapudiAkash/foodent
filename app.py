@@ -103,7 +103,7 @@ def get_css():
     </style>
     """
 
-class AdvancedFoodAnalyzer:
+class FoodAnalyzer:
     def __init__(self):
         self.api_key = os.getenv('FOOD_API_KEY', 'default_key')
         
