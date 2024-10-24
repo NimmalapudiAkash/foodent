@@ -1,3 +1,4 @@
+pip install google-generativeai
 import streamlit as st
 from PIL import Image
 import os
