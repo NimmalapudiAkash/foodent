@@ -396,30 +396,30 @@ def main():
             st.progress(0.3, "Water (30%)")
     
     with tab4:
-    st.markdown("### 📚 Nutrition Knowledge Base")
-    
-    # Search bar
-    st.text_input("Search nutrition information...", placeholder="Type to search...")
-    
-    # Quick access sections
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        with st.expander("🥑 Common Foods Nutrition Facts"):
-            st.markdown("""
-                - Banana (105 calories, 27g carbs)
-                - Apple (95 calories, 25g carbs)
-                - Chicken Breast (165 calories, 31g protein)
-                - Salmon (208 calories, 22g protein)
-                - Avocado (160 calories, 15g fat)
-            """)
-    
-    with col2:
-        with st.expander("🏃‍♂️ Exercise Equivalents"):
-            st.markdown("""
-                - 100 calories = 20 min walking
-                - 200 calories = 30 min cycling
-                - 300 calories = 30 min running
-                - 400 calories = 45 min swimming
-                - 500 calories = 60 min HIIT
-            """)
+        st.markdown("### 📚 Nutrition Knowledge Base")
+        
+        # Search bar
+        st.text_input("Search nutrition information...", placeholder="Type to search...")
+        
+        # Quick access sections
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            with st.expander("🥑 Common Foods Nutrition Facts"):
+                st.markdown("""
+                    - Banana (105 calories, 27g carbs)
+                    - Apple (95 calories, 25g carbs)
+                    - Chicken Breast (165 calories, 31g protein)
+                    - Salmon (208 calories, 22g protein)
+                    - Avocado (160 calories, 15g fat)
+                """)
+        
+        with col2:
+            with st.expander("🏃‍♂️ Exercise Equivalents"):
+                st.markdown("""
+                    - 100 calories = 20 min walking
+                    - 200 calories = 30 min cycling
+                    - 300 calories = 30 min running
+                    - 400 calories = 45 min swimming
+                    - 500 calories = 60 min HIIT
+                """)
