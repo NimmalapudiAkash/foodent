@@ -1,129 +1,165 @@
-import React, { useState } from 'react';
-import { Camera, Upload, Lock } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import streamlit as st
+import cv2
+import numpy as np
+from PIL import Image
+import io
+import os
+from dotenv import load_dotenv
+import time
+import json
 
-const FoodAnalysisApp = () => {
-  const [foodData, setFoodData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  
-  // Function to handle file upload
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    try {
-      setIsLoading(true);
-      setError('');
-      
-      // In a real app, you would:
-      // 1. Get the API key from environment variables
-      // 2. Send the image to your backend
-      // 3. Process the image and return food data
-      // For demo, we'll simulate an API response
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setFoodData({
-        name: "Sample Food",
-        calories: 250,
-        nutrients: {
-          protein: "10g",
-          carbs: "30g",
-          fat: "12g"
-        }
-      });
-    } catch (err) {
-      setError('Error analyzing food image. Please try again.');
-    } finally {
-      setIsLoading(false);
+# Load environment variables
+load_dotenv()
+
+# Configure Streamlit page
+st.set_page_config(
+    page_title="Food Analysis App",
+    page_icon="🍽️",
+    layout="centered"
+)
+
+# Custom CSS for better styling
+st.markdown("""
+    <style>
+    .stApp {
+        max-width: 800px;
+        margin: 0 auto;
     }
-  };
+    .upload-box {
+        border: 2px dashed #4CAF50;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+    }
+    .result-box {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-top: 20px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-  // Function to handle camera capture
-  const handleCameraCapture = () => {
-    // In a real app, you would implement camera functionality
-    alert('Camera functionality would be implemented here');
-  };
+class FoodAnalyzer:
+    def __init__(self):
+        # In production, get API key from environment variables
+        self.api_key = os.getenv('FOOD_API_KEY', 'default_key')
+    
+    def analyze_image(self, image):
+        """
+        Simulate food analysis from image
+        In production, this would make actual API calls
+        """
+        # Simulate processing time
+        time.sleep(2)
+        
+        # Mock response - in production, this would come from an API
+        return {
+            "name": "Detected Food Item",
+            "calories": 250,
+            "confidence": 0.92,
+            "nutrients": {
+                "protein": "12g",
+                "carbs": "30g",
+                "fat": "8g",
+                "fiber": "4g"
+            },
+            "allergens": ["none detected"],
+            "healthScore": 85
+        }
 
-  return (
-    <div className="max-w-2xl mx-auto p-4 space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lock className="w-5 h-5" />
-            Food Analysis App
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex gap-4 justify-center">
-              <label className="flex flex-col items-center gap-2 cursor-pointer p-4 border-2 border-dashed rounded-lg hover:bg-gray-50">
-                <Upload className="w-8 h-8 text-blue-500" />
-                <span className="text-sm">Upload Photo</span>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                />
-              </label>
-              
-              <button
-                onClick={handleCameraCapture}
-                className="flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-lg hover:bg-gray-50"
-              >
-                <Camera className="w-8 h-8 text-blue-500" />
-                <span className="text-sm">Take Photo</span>
-              </button>
-            </div>
+def main():
+    st.title("🍽️ Food Analysis App")
+    
+    # Initialize session state for storing analysis results
+    if 'analysis_results' not in st.session_state:
+        st.session_state.analysis_results = None
+    
+    # Initialize FoodAnalyzer
+    analyzer = FoodAnalyzer()
+    
+    # Create tabs for different input methods
+    tab1, tab2 = st.tabs(["📷 Camera Input", "📤 Upload Image"])
+    
+    with tab1:
+        st.header("Take a Picture")
+        camera_input = st.camera_input("Take a picture of your food")
+        
+        if camera_input:
+            try:
+                # Process the camera input
+                image = Image.open(camera_input)
+                st.image(image, caption="Captured Image", use_column_width=True)
+                
+                with st.spinner('Analyzing food...'):
+                    results = analyzer.analyze_image(image)
+                st.session_state.analysis_results = results
+                
+            except Exception as e:
+                st.error(f"Error processing image: {str(e)}")
+    
+    with tab2:
+        st.header("Upload Image")
+        uploaded_file = st.file_uploader(
+            "Choose a food image...",
+            type=['png', 'jpg', 'jpeg'],
+            help="Upload a clear image of the food item"
+        )
+        
+        if uploaded_file:
+            try:
+                # Process the uploaded file
+                image = Image.open(uploaded_file)
+                st.image(image, caption="Uploaded Image", use_column_width=True)
+                
+                with st.spinner('Analyzing food...'):
+                    results = analyzer.analyze_image(image)
+                st.session_state.analysis_results = results
+                
+            except Exception as e:
+                st.error(f"Error processing image: {str(e)}")
+    
+    # Display results if available
+    if st.session_state.analysis_results:
+        results = st.session_state.analysis_results
+        
+        st.markdown("### Analysis Results")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric("Food Item", results["name"])
+            st.metric("Calories", f"{results['calories']} kcal")
+            st.metric("Health Score", f"{results['healthScore']}/100")
+        
+        with col2:
+            st.metric("Confidence", f"{results['confidence']*100:.1f}%")
+            st.metric("Allergens", ", ".join(results["allergens"]))
+        
+        # Nutrient information
+        st.markdown("### Nutritional Information")
+        nutrients = results["nutrients"]
+        cols = st.columns(4)
+        
+        with cols[0]:
+            st.metric("Protein", nutrients["protein"])
+        with cols[1]:
+            st.metric("Carbs", nutrients["carbs"])
+        with cols[2]:
+            st.metric("Fat", nutrients["fat"])
+        with cols[3]:
+            st.metric("Fiber", nutrients["fiber"])
+        
+        # Export results button
+        if st.button("Export Results"):
+            # Create JSON string
+            results_json = json.dumps(results, indent=2)
+            # Create download button
+            st.download_button(
+                label="Download JSON",
+                data=results_json,
+                file_name="food_analysis.json",
+                mime="application/json"
+            )
 
-            {isLoading && (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="mt-2 text-sm text-gray-600">Analyzing food...</p>
-              </div>
-            )}
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {foodData && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Analysis Results</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <p className="text-lg font-semibold">{foodData.name}</p>
-                    <p className="text-gray-600">Calories: {foodData.calories}</p>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="p-2 bg-blue-50 rounded">
-                        <p className="font-medium">Protein</p>
-                        <p>{foodData.nutrients.protein}</p>
-                      </div>
-                      <div className="p-2 bg-green-50 rounded">
-                        <p className="font-medium">Carbs</p>
-                        <p>{foodData.nutrients.carbs}</p>
-                      </div>
-                      <div className="p-2 bg-yellow-50 rounded">
-                        <p className="font-medium">Fat</p>
-                        <p>{foodData.nutrients.fat}</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export default FoodAnalysisApp;
+if __name__ == "__main__":
+    main()
