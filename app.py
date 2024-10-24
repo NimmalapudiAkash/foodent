@@ -1,4 +1,3 @@
-pip install google-generativeai
 import streamlit as st
 from PIL import Image
 import os
@@ -13,9 +12,6 @@ if not api_key:
 else:
     ai.configure(api_key=api_key)
 
-# The rest of your code remains the same
-
-
 # Instantiate the GenerativeModel
 try:
     model = ai.GenerativeModel("gemini-1.5-flash")
@@ -23,7 +19,7 @@ except Exception as e:
     st.error(f"Error initializing the AI model: {e}")
 
 def get_gemini_response(input_text, image_parts, prompt):
-    """Fetche s a response from the AI model with text and image inputs."""
+    """Fetches a response from the AI model with text and image inputs."""
     if not image_parts:
         raise ValueError("Image required for this model. Please upload an image and try again.")
     try:
