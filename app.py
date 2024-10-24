@@ -1,94 +1,165 @@
 import streamlit as st
-import google.generativeai as genai
+import json
+from datetime import datetime
 import base64
 from io import BytesIO
 
-def setup_page():
-    """Configure the Streamlit page"""
-    st.set_page_config(page_title='Foodent AI', page_icon='🍽️')
-    st.title('✺ FOODENT')
-
-def initialize_ai():
-    """Initialize the AI model"""
-    try:
-        api_key = st.secrets["GOOGLE_API_KEY"]
-        if not api_key:
-            st.error("API key not found!")
-            return None
+class FoodAnalyzer:
+    def __init__(self):
+        self.food_database = {
+            "fruits": ["apple", "banana", "orange", "grape", "strawberry"],
+            "vegetables": ["carrot", "broccoli", "spinach", "tomato", "cucumber"],
+            "grains": ["rice", "bread", "pasta", "oats", "quinoa"],
+            "proteins": ["chicken", "fish", "beef", "eggs", "tofu"],
+            "dairy": ["milk", "cheese", "yogurt", "butter", "cream"]
+        }
         
-        genai.configure(api_key=api_key)
-        return genai.GenerativeModel("gemini-1.5-flash")
-    except Exception as e:
-        st.error(f"Error initializing AI model: {e}")
+        self.nutrition_facts = {
+            "fruits": "Rich in vitamins, minerals, and antioxidants",
+            "vegetables": "High in fiber, vitamins, and minerals",
+            "grains": "Good source of carbohydrates and fiber",
+            "proteins": "Essential for muscle building and repair",
+            "dairy": "Excellent source of calcium and protein"
+        }
+
+    def basic_analysis(self, food_type):
+        """Provide basic food analysis based on category"""
+        return {
+            "category": food_type,
+            "common_items": self.food_database.get(food_type, []),
+            "nutrition": self.nutrition_facts.get(food_type, "Nutrition information not available"),
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+class FoodentApp:
+    def __init__(self):
+        self.analyzer = FoodAnalyzer()
+        self.setup_session_state()
+        
+    def setup_session_state(self):
+        """Initialize session state variables"""
+        if 'analysis_history' not in st.session_state:
+            st.session_state.analysis_history = []
+        if 'image_counter' not in st.session_state:
+            st.session_state.image_counter = 0
+
+    def setup_page(self):
+        """Configure the Streamlit page"""
+        st.set_page_config(page_title='Foodent', page_icon='🍽️', layout='wide')
+        st.title('✺ FOODENT')
+        st.markdown("""
+        ### Your Personal Food Analysis Assistant
+        Upload food images and get basic insights about different food categories.
+        """)
+
+    def save_uploaded_file(self, uploaded_file):
+        """Save uploaded file information"""
+        if uploaded_file is not None:
+            file_details = {
+                "filename": uploaded_file.name,
+                "filetype": uploaded_file.type,
+                "filesize": uploaded_file.size
+            }
+            return file_details
         return None
 
-def process_image(file):
-    """Process the uploaded file without using PIL"""
-    try:
-        if not file:
-            return None
+    def display_analysis(self, food_type):
+        """Display food analysis results"""
+        analysis = self.analyzer.basic_analysis(food_type)
         
-        bytes_data = file.getvalue()
-        return [{
-            "mime_type": file.type,
-            "data": bytes_data
-        }]
-    except Exception as e:
-        st.error(f"Error processing image: {e}")
-        return None
-
-def get_ai_response(model, image_parts, query):
-    """Get AI response"""
-    try:
-        if not model or not image_parts:
-            return None
-
-        prompt = f"""
-        Analyze this food image and respond to the following query:
-        {query}
+        # Create columns for better layout
+        col1, col2 = st.columns(2)
         
-        Please provide:
-        - Ingredients identified
-        - Nutritional insights
-        - Preparation methods
-        - Dietary considerations
-        """
-
-        response = model.generate_content([prompt] + image_parts)
-        return response.text
-    except Exception as e:
-        st.error(f"Error getting AI response: {e}")
-        return None
-
-def main():
-    setup_page()
-    model = initialize_ai()
-
-    # Sidebar
-    st.sidebar.title("Image Settings")
-    image_source = st.sidebar.radio("Choose image source:", ["Upload", "Camera"])
-    
-    # Image input
-    if image_source == "Upload":
-        file = st.sidebar.file_uploader("Upload food image...", type=['jpg', 'jpeg', 'png'])
-    else:
-        file = st.sidebar.camera_input("Take a food picture")
-
-    # Display image and handle query
-    if file:
-        st.image(file, caption="Uploaded Image", width=300)
-        image_parts = process_image(file)
+        with col1:
+            st.subheader("Category Analysis")
+            st.write(f"Selected Category: {analysis['category'].title()}")
+            st.write("Common Items:", ", ".join(analysis['common_items']))
+            
+        with col2:
+            st.subheader("Nutritional Insights")
+            st.write(analysis['nutrition'])
         
-        query = st.text_area("Ask about your food:",
-            placeholder="Example: What ingredients can you identify?")
+        # Add to history
+        st.session_state.analysis_history.append(analysis)
         
-        if query and image_parts:
-            with st.spinner("Analyzing..."):
-                response = get_ai_response(model, image_parts, query)
-                if response:
-                    st.markdown(response)
-    else:
-        st.info("Please upload or capture a food image to begin.")
+        # Show preparation suggestions
+        st.subheader("Preparation Suggestions")
+        st.write(self.get_preparation_tips(food_type))
+
+    def get_preparation_tips(self, food_type):
+        """Get preparation tips based on food type"""
+        tips = {
+            "fruits": "• Wash thoroughly before eating\n• Can be eaten raw or added to smoothies\n• Great for healthy snacking",
+            "vegetables": "• Steam or roast for best nutrition\n• Can be eaten raw in salads\n• Store in refrigerator",
+            "grains": "• Cook in water or broth\n• Follow package instructions\n• Store in airtight containers",
+            "proteins": "• Cook thoroughly\n• Use proper food safety guidelines\n• Store at appropriate temperature",
+            "dairy": "• Keep refrigerated\n• Check expiration dates\n• Use in recommended portions"
+        }
+        return tips.get(food_type, "No specific preparation tips available.")
+
+    def show_history(self):
+        """Display analysis history"""
+        if st.session_state.analysis_history:
+            st.subheader("Recent Analysis History")
+            for i, analysis in enumerate(reversed(st.session_state.analysis_history[-5:])):
+                with st.expander(f"Analysis {len(st.session_state.analysis_history) - i}"):
+                    st.write(f"Category: {analysis['category'].title()}")
+                    st.write(f"Timestamp: {analysis['timestamp']}")
+                    st.write("Nutrition Info:", analysis['nutrition'])
+
+    def run(self):
+        """Run the Streamlit application"""
+        self.setup_page()
+        
+        # Sidebar
+        with st.sidebar:
+            st.title("Food Analysis Options")
+            image_source = st.radio("Choose image source:", ["Upload", "Camera"])
+            
+            if image_source == "Upload":
+                uploaded_file = st.file_uploader("Upload food image...", 
+                                               type=['jpg', 'jpeg', 'png'])
+            else:
+                uploaded_file = st.camera_input("Take a food picture")
+
+            # Food category selection
+            food_type = st.selectbox("Select food category:",
+                                   ["fruits", "vegetables", "grains", "proteins", "dairy"])
+            
+            if st.button("Analyze Food"):
+                if uploaded_file:
+                    file_details = self.save_uploaded_file(uploaded_file)
+                    if file_details:
+                        st.success("Image uploaded successfully!")
+                        st.write("File Details:", file_details)
+                        
+                        # Display image
+                        st.image(uploaded_file, caption="Uploaded Food Image", 
+                               use_column_width=True)
+                        
+                        # Show analysis
+                        self.display_analysis(food_type)
+                else:
+                    st.warning("Please upload an image first!")
+
+        # Main content area
+        if uploaded_file:
+            # Display current image
+            st.image(uploaded_file, caption="Current Image", width=300)
+            
+        # Show analysis history
+        self.show_history()
+        
+        # Additional information
+        with st.expander("About Foodent"):
+            st.write("""
+            Foodent is a simple food analysis tool that helps you:
+            - Analyze different food categories
+            - Get basic nutritional insights
+            - Learn about food preparation
+            - Track your food analysis history
+            """)
 
 if __name__ == "__main__":
-    main()
+    app = FoodentApp()
+    app.run()
