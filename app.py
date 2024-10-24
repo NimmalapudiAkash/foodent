@@ -1,165 +1,129 @@
-import streamlit as st
-import json
-from datetime import datetime
-import base64
-from io import BytesIO
+import React, { useState } from 'react';
+import { Camera, Upload, Lock } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-class FoodAnalyzer:
-    def __init__(self):
-        self.food_database = {
-            "fruits": ["apple", "banana", "orange", "grape", "strawberry"],
-            "vegetables": ["carrot", "broccoli", "spinach", "tomato", "cucumber"],
-            "grains": ["rice", "bread", "pasta", "oats", "quinoa"],
-            "proteins": ["chicken", "fish", "beef", "eggs", "tofu"],
-            "dairy": ["milk", "cheese", "yogurt", "butter", "cream"]
+const FoodAnalysisApp = () => {
+  const [foodData, setFoodData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  // Function to handle file upload
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+      setIsLoading(true);
+      setError('');
+      
+      // In a real app, you would:
+      // 1. Get the API key from environment variables
+      // 2. Send the image to your backend
+      // 3. Process the image and return food data
+      // For demo, we'll simulate an API response
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setFoodData({
+        name: "Sample Food",
+        calories: 250,
+        nutrients: {
+          protein: "10g",
+          carbs: "30g",
+          fat: "12g"
         }
-        
-        self.nutrition_facts = {
-            "fruits": "Rich in vitamins, minerals, and antioxidants",
-            "vegetables": "High in fiber, vitamins, and minerals",
-            "grains": "Good source of carbohydrates and fiber",
-            "proteins": "Essential for muscle building and repair",
-            "dairy": "Excellent source of calcium and protein"
-        }
+      });
+    } catch (err) {
+      setError('Error analyzing food image. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    def basic_analysis(self, food_type):
-        """Provide basic food analysis based on category"""
-        return {
-            "category": food_type,
-            "common_items": self.food_database.get(food_type, []),
-            "nutrition": self.nutrition_facts.get(food_type, "Nutrition information not available"),
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
+  // Function to handle camera capture
+  const handleCameraCapture = () => {
+    // In a real app, you would implement camera functionality
+    alert('Camera functionality would be implemented here');
+  };
 
-class FoodentApp:
-    def __init__(self):
-        self.analyzer = FoodAnalyzer()
-        self.setup_session_state()
-        
-    def setup_session_state(self):
-        """Initialize session state variables"""
-        if 'analysis_history' not in st.session_state:
-            st.session_state.analysis_history = []
-        if 'image_counter' not in st.session_state:
-            st.session_state.image_counter = 0
+  return (
+    <div className="max-w-2xl mx-auto p-4 space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="w-5 h-5" />
+            Food Analysis App
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex gap-4 justify-center">
+              <label className="flex flex-col items-center gap-2 cursor-pointer p-4 border-2 border-dashed rounded-lg hover:bg-gray-50">
+                <Upload className="w-8 h-8 text-blue-500" />
+                <span className="text-sm">Upload Photo</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                />
+              </label>
+              
+              <button
+                onClick={handleCameraCapture}
+                className="flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-lg hover:bg-gray-50"
+              >
+                <Camera className="w-8 h-8 text-blue-500" />
+                <span className="text-sm">Take Photo</span>
+              </button>
+            </div>
 
-    def setup_page(self):
-        """Configure the Streamlit page"""
-        st.set_page_config(page_title='Foodent', page_icon='🍽️', layout='wide')
-        st.title('✺ FOODENT')
-        st.markdown("""
-        ### Your Personal Food Analysis Assistant
-        Upload food images and get basic insights about different food categories.
-        """)
+            {isLoading && (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                <p className="mt-2 text-sm text-gray-600">Analyzing food...</p>
+              </div>
+            )}
 
-    def save_uploaded_file(self, uploaded_file):
-        """Save uploaded file information"""
-        if uploaded_file is not None:
-            file_details = {
-                "filename": uploaded_file.name,
-                "filetype": uploaded_file.type,
-                "filesize": uploaded_file.size
-            }
-            return file_details
-        return None
+            {error && (
+              <Alert variant="destructive">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-    def display_analysis(self, food_type):
-        """Display food analysis results"""
-        analysis = self.analyzer.basic_analysis(food_type)
-        
-        # Create columns for better layout
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Category Analysis")
-            st.write(f"Selected Category: {analysis['category'].title()}")
-            st.write("Common Items:", ", ".join(analysis['common_items']))
-            
-        with col2:
-            st.subheader("Nutritional Insights")
-            st.write(analysis['nutrition'])
-        
-        # Add to history
-        st.session_state.analysis_history.append(analysis)
-        
-        # Show preparation suggestions
-        st.subheader("Preparation Suggestions")
-        st.write(self.get_preparation_tips(food_type))
+            {foodData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Analysis Results</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-lg font-semibold">{foodData.name}</p>
+                    <p className="text-gray-600">Calories: {foodData.calories}</p>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="p-2 bg-blue-50 rounded">
+                        <p className="font-medium">Protein</p>
+                        <p>{foodData.nutrients.protein}</p>
+                      </div>
+                      <div className="p-2 bg-green-50 rounded">
+                        <p className="font-medium">Carbs</p>
+                        <p>{foodData.nutrients.carbs}</p>
+                      </div>
+                      <div className="p-2 bg-yellow-50 rounded">
+                        <p className="font-medium">Fat</p>
+                        <p>{foodData.nutrients.fat}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
-    def get_preparation_tips(self, food_type):
-        """Get preparation tips based on food type"""
-        tips = {
-            "fruits": "• Wash thoroughly before eating\n• Can be eaten raw or added to smoothies\n• Great for healthy snacking",
-            "vegetables": "• Steam or roast for best nutrition\n• Can be eaten raw in salads\n• Store in refrigerator",
-            "grains": "• Cook in water or broth\n• Follow package instructions\n• Store in airtight containers",
-            "proteins": "• Cook thoroughly\n• Use proper food safety guidelines\n• Store at appropriate temperature",
-            "dairy": "• Keep refrigerated\n• Check expiration dates\n• Use in recommended portions"
-        }
-        return tips.get(food_type, "No specific preparation tips available.")
-
-    def show_history(self):
-        """Display analysis history"""
-        if st.session_state.analysis_history:
-            st.subheader("Recent Analysis History")
-            for i, analysis in enumerate(reversed(st.session_state.analysis_history[-5:])):
-                with st.expander(f"Analysis {len(st.session_state.analysis_history) - i}"):
-                    st.write(f"Category: {analysis['category'].title()}")
-                    st.write(f"Timestamp: {analysis['timestamp']}")
-                    st.write("Nutrition Info:", analysis['nutrition'])
-
-    def run(self):
-        """Run the Streamlit application"""
-        self.setup_page()
-        
-        # Sidebar
-        with st.sidebar:
-            st.title("Food Analysis Options")
-            image_source = st.radio("Choose image source:", ["Upload", "Camera"])
-            
-            if image_source == "Upload":
-                uploaded_file = st.file_uploader("Upload food image...", 
-                                               type=['jpg', 'jpeg', 'png'])
-            else:
-                uploaded_file = st.camera_input("Take a food picture")
-
-            # Food category selection
-            food_type = st.selectbox("Select food category:",
-                                   ["fruits", "vegetables", "grains", "proteins", "dairy"])
-            
-            if st.button("Analyze Food"):
-                if uploaded_file:
-                    file_details = self.save_uploaded_file(uploaded_file)
-                    if file_details:
-                        st.success("Image uploaded successfully!")
-                        st.write("File Details:", file_details)
-                        
-                        # Display image
-                        st.image(uploaded_file, caption="Uploaded Food Image", 
-                               use_column_width=True)
-                        
-                        # Show analysis
-                        self.display_analysis(food_type)
-                else:
-                    st.warning("Please upload an image first!")
-
-        # Main content area
-        if uploaded_file:
-            # Display current image
-            st.image(uploaded_file, caption="Current Image", width=300)
-            
-        # Show analysis history
-        self.show_history()
-        
-        # Additional information
-        with st.expander("About Foodent"):
-            st.write("""
-            Foodent is a simple food analysis tool that helps you:
-            - Analyze different food categories
-            - Get basic nutritional insights
-            - Learn about food preparation
-            - Track your food analysis history
-            """)
-
-if __name__ == "__main__":
-    app = FoodentApp()
-    app.run()
+export default FoodAnalysisApp;
