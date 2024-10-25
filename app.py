@@ -1,188 +1,154 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import io
-import os
-from dotenv import load_dotenv
-import time
-import json
-from datetime import datetime
-import tensorflow as tf
 import cv2
-
-# Load environment variables
-load_dotenv()
+from datetime import datetime
+import json
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="Smart Food Analyzer",
+    page_title="Simple Food Analyzer",
     page_icon="🍽️",
     layout="wide"
 )
 
-# Custom CSS (keeping the same styling as before)
-st.markdown("""
-    <style>
-    .stApp {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-    .result-box {
-        background-color: #ffffff;
-        padding: 25px;
-        border-radius: 15px;
-        margin-top: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    .metric-card {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 10px;
-        margin: 10px 0;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-class FoodAnalyzer:
+class SimpleFoodAnalyzer:
     def __init__(self):
-        # Load pre-trained MobileNetV2 model for image classification
-        self.model = tf.keras.applications.MobileNetV2(weights='imagenet')
-        
-        # Common food categories and their nutritional info
+        # Food database with color profiles and nutrition info
         self.food_database = {
-            'pizza': {
-                'name': 'Pizza',
-                'calories': 266,
+            'red_foods': {
+                'name': 'Tomato-based Dish',
+                'calories': 250,
                 'nutrients': {
-                    'protein': '11g',
-                    'carbs': '33g',
-                    'fat': '10g',
-                    'fiber': '2g'
+                    'protein': '8g',
+                    'carbs': '30g',
+                    'fat': '12g',
+                    'fiber': '4g'
                 },
-                'allergens': ['wheat', 'dairy'],
-                'healthScore': 45
+                'allergens': ['none'],
+                'healthScore': 75
             },
-            'hamburger': {
-                'name': 'Hamburger',
-                'calories': 354,
-                'nutrients': {
-                    'protein': '20g',
-                    'carbs': '29g',
-                    'fat': '17g',
-                    'fiber': '3g'
-                },
-                'allergens': ['wheat'],
-                'healthScore': 40
-            },
-            'salad': {
-                'name': 'Fresh Salad',
-                'calories': 152,
+            'green_foods': {
+                'name': 'Green Salad/Vegetables',
+                'calories': 150,
                 'nutrients': {
                     'protein': '5g',
-                    'carbs': '10g',
+                    'carbs': '15g',
                     'fat': '7g',
                     'fiber': '8g'
                 },
                 'allergens': ['none'],
                 'healthScore': 95
             },
-            'sushi': {
-                'name': 'Sushi Roll',
-                'calories': 228,
-                'nutrients': {
-                    'protein': '9g',
-                    'carbs': '38g',
-                    'fat': '5g',
-                    'fiber': '4g'
-                },
-                'allergens': ['fish', 'soy'],
-                'healthScore': 80
-            },
-            'pasta': {
-                'name': 'Pasta Dish',
-                'calories': 320,
+            'brown_foods': {
+                'name': 'Bread/Grain Dish',
+                'calories': 350,
                 'nutrients': {
                     'protein': '12g',
-                    'carbs': '54g',
+                    'carbs': '45g',
+                    'fat': '15g',
+                    'fiber': '3g'
+                },
+                'allergens': ['wheat', 'gluten'],
+                'healthScore': 65
+            },
+            'yellow_foods': {
+                'name': 'Pasta/Rice Dish',
+                'calories': 320,
+                'nutrients': {
+                    'protein': '10g',
+                    'carbs': '50g',
                     'fat': '8g',
-                    'fiber': '4g'
+                    'fiber': '2g'
                 },
                 'allergens': ['wheat'],
-                'healthScore': 65
+                'healthScore': 70
+            },
+            'mixed_colors': {
+                'name': 'Mixed Dish',
+                'calories': 400,
+                'nutrients': {
+                    'protein': '15g',
+                    'carbs': '40g',
+                    'fat': '20g',
+                    'fiber': '5g'
+                },
+                'allergens': ['may contain multiple allergens'],
+                'healthScore': 80
             }
         }
-    
-    def preprocess_image(self, image):
-        """Preprocess image for the model"""
-        # Convert PIL Image to numpy array
-        img_array = np.array(image)
-        
-        # Resize image to model's required size
-        img_resized = cv2.resize(img_array, (224, 224))
-        
-        # Preprocess for MobileNetV2
-        img_preprocessed = tf.keras.applications.mobilenet_v2.preprocess_input(img_resized)
-        
-        return np.expand_dims(img_preprocessed, axis=0)
 
-    def is_food(self, prediction_classes, confidence):
-        """Check if the image contains food"""
-        # List of ImageNet categories that typically correspond to food
-        food_related_categories = [
-            'pizza', 'hamburger', 'sandwich', 'salad', 'sushi', 'pasta',
-            'ice_cream', 'bread', 'coffee', 'cake', 'rice', 'vegetable'
-        ]
+    def analyze_colors(self, img_array):
+        """Analyze the color distribution in the image"""
+        # Convert to HSV color space
+        hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV)
         
-        return any(category in prediction_classes.lower() for category in food_related_categories)
+        # Define color ranges
+        color_ranges = {
+            'red': ([0, 50, 50], [10, 255, 255]),
+            'green': ([35, 50, 50], [85, 255, 255]),
+            'brown': ([10, 50, 50], [20, 255, 255]),
+            'yellow': ([20, 50, 50], [35, 255, 255])
+        }
+        
+        # Calculate color percentages
+        color_percentages = {}
+        total_pixels = hsv.shape[0] * hsv.shape[1]
+        
+        for color, (lower, upper) in color_ranges.items():
+            mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
+            color_pixels = cv2.countNonZero(mask)
+            percentage = (color_pixels / total_pixels) * 100
+            color_percentages[color] = percentage
+            
+        return color_percentages
 
-    def get_food_type(self, prediction_classes):
-        """Map prediction to food database entry"""
-        prediction_lower = prediction_classes.lower()
+    def is_likely_food(self, img_array):
+        """Basic check if image likely contains food"""
+        # Convert to grayscale
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
         
-        # Map predicted class to food database
-        for food_type in self.food_database.keys():
-            if food_type in prediction_lower:
-                return food_type
-                
-        # Default to closest match or None
-        return None
+        # Calculate image statistics
+        std_dev = np.std(gray)
+        mean_val = np.mean(gray)
+        
+        # Images with very low variation or extreme brightness/darkness
+        # are less likely to be food
+        return std_dev > 20 and 30 < mean_val < 225
+
+    def get_dominant_color_profile(self, color_percentages):
+        """Determine the dominant color profile"""
+        if max(color_percentages.values()) < 10:
+            return 'mixed_colors'
+        
+        dominant_color = max(color_percentages.items(), key=lambda x: x[1])[0]
+        return f"{dominant_color}_foods"
 
     def analyze_image(self, image):
         """Analyze food image and return nutritional information"""
         try:
-            # Preprocess image
-            preprocessed_img = self.preprocess_image(image)
+            # Convert PIL image to numpy array
+            img_array = np.array(image)
             
-            # Get model predictions
-            predictions = self.model.predict(preprocessed_img)
-            decoded_predictions = tf.keras.applications.mobilenet_v2.decode_predictions(predictions, top=3)
-            
-            # Get top prediction
-            top_prediction = decoded_predictions[0][0]
-            prediction_class = top_prediction[1]
-            confidence = float(top_prediction[2])
-            
-            # Check if image contains food
-            if not self.is_food(prediction_class, confidence):
+            # Check if image likely contains food
+            if not self.is_likely_food(img_array):
                 return {
                     "error": "No food detected in image",
-                    "confidence": confidence,
-                    "detected_class": prediction_class
+                    "details": "Image doesn't appear to contain food"
                 }
             
-            # Get food type and nutritional info
-            food_type = self.get_food_type(prediction_class)
-            if food_type is None:
-                return {
-                    "error": "Unable to identify specific food type",
-                    "confidence": confidence,
-                    "detected_class": prediction_class
-                }
+            # Analyze colors
+            color_percentages = self.analyze_colors(img_array)
+            
+            # Get food type based on color profile
+            food_type = self.get_dominant_color_profile(color_percentages)
             
             # Get nutritional information
             food_info = self.food_database[food_type].copy()
+            
+            # Add analysis metadata
             food_info.update({
-                "confidence": confidence,
+                "color_distribution": {k: f"{v:.1f}%" for k, v in color_percentages.items()},
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             })
             
@@ -191,7 +157,7 @@ class FoodAnalyzer:
         except Exception as e:
             return {
                 "error": f"Error analyzing image: {str(e)}",
-                "confidence": 0
+                "details": "Please try with a different image"
             }
 
 def process_image(image_data):
@@ -213,9 +179,8 @@ def display_results(results):
     """Display analysis results"""
     if "error" in results:
         st.error(results["error"])
-        if "detected_class" in results:
-            st.write(f"Detected content: {results['detected_class']}")
-            st.write(f"Confidence: {results['confidence']:.2%}")
+        if "details" in results:
+            st.write(results["details"])
         return
 
     st.markdown("### 📊 Analysis Results")
@@ -223,11 +188,19 @@ def display_results(results):
     # Main metrics
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Food Item", results["name"])
+        st.metric("Detected Food", results["name"])
     with col2:
         st.metric("Calories", f"{results['calories']} kcal")
     with col3:
         st.metric("Health Score", f"{results['healthScore']}/100")
+
+    # Color distribution
+    if "color_distribution" in results:
+        st.markdown("### 🎨 Color Analysis")
+        cols = st.columns(len(results["color_distribution"]))
+        for i, (color, percentage) in enumerate(results["color_distribution"].items()):
+            with cols[i]:
+                st.metric(color.title(), percentage)
 
     # Nutrients
     st.markdown("### 🥗 Nutritional Information")
@@ -251,16 +224,11 @@ def display_results(results):
     else:
         st.warning(f"Contains: {', '.join(allergens)}")
 
-    # Confidence
-    st.markdown("### 🎯 Detection Confidence")
-    st.progress(float(results["confidence"]))
-    st.write(f"Confidence: {results['confidence']:.2%}")
-
 def main():
-    st.title("🍽️ Smart Food Analyzer")
+    st.title("🍽️ Simple Food Analyzer")
     
     # Initialize FoodAnalyzer
-    analyzer = FoodAnalyzer()
+    analyzer = SimpleFoodAnalyzer()
     
     # Create tabs for input methods
     tab1, tab2 = st.tabs(["📷 Camera Input", "📤 Upload Image"])
