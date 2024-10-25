@@ -1,23 +1,21 @@
 import streamlit as st
-import numpy as np
 from PIL import Image
-import cv2
+import numpy as np
 from datetime import datetime
 import json
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="Simple Food Analyzer",
+    page_title="Basic Food Analyzer",
     page_icon="🍽️",
     layout="wide"
 )
 
-class SimpleFoodAnalyzer:
+class BasicFoodAnalyzer:
     def __init__(self):
-        # Food database with color profiles and nutrition info
         self.food_database = {
-            'red_foods': {
-                'name': 'Tomato-based Dish',
+            'red_dominant': {
+                'name': 'Tomato-based/Red Meat Dish',
                 'calories': 250,
                 'nutrients': {
                     'protein': '8g',
@@ -28,8 +26,8 @@ class SimpleFoodAnalyzer:
                 'allergens': ['none'],
                 'healthScore': 75
             },
-            'green_foods': {
-                'name': 'Green Salad/Vegetables',
+            'green_dominant': {
+                'name': 'Salad/Vegetables',
                 'calories': 150,
                 'nutrients': {
                     'protein': '5g',
@@ -40,7 +38,7 @@ class SimpleFoodAnalyzer:
                 'allergens': ['none'],
                 'healthScore': 95
             },
-            'brown_foods': {
+            'brown_dominant': {
                 'name': 'Bread/Grain Dish',
                 'calories': 350,
                 'nutrients': {
@@ -52,8 +50,8 @@ class SimpleFoodAnalyzer:
                 'allergens': ['wheat', 'gluten'],
                 'healthScore': 65
             },
-            'yellow_foods': {
-                'name': 'Pasta/Rice Dish',
+            'light_dominant': {
+                'name': 'Rice/Pasta Dish',
                 'calories': 320,
                 'nutrients': {
                     'protein': '10g',
@@ -64,7 +62,7 @@ class SimpleFoodAnalyzer:
                 'allergens': ['wheat'],
                 'healthScore': 70
             },
-            'mixed_colors': {
+            'mixed': {
                 'name': 'Mixed Dish',
                 'calories': 400,
                 'nutrients': {
@@ -78,77 +76,75 @@ class SimpleFoodAnalyzer:
             }
         }
 
-    def analyze_colors(self, img_array):
-        """Analyze the color distribution in the image"""
-        # Convert to HSV color space
-        hsv = cv2.cvtColor(img_array, cv2.COLOR_RGB2HSV)
+    def analyze_colors(self, image):
+        """Analyze the color distribution in the image using PIL"""
+        # Convert image to RGB if it isn't already
+        img_rgb = image.convert('RGB')
         
-        # Define color ranges
-        color_ranges = {
-            'red': ([0, 50, 50], [10, 255, 255]),
-            'green': ([35, 50, 50], [85, 255, 255]),
-            'brown': ([10, 50, 50], [20, 255, 255]),
-            'yellow': ([20, 50, 50], [35, 255, 255])
+        # Get image data
+        pixels = list(img_rgb.getdata())
+        num_pixels = len(pixels)
+        
+        # Simple color categorization
+        red_pixels = sum(1 for r, g, b in pixels if r > max(g, b) + 30)
+        green_pixels = sum(1 for r, g, b in pixels if g > max(r, b) + 30)
+        brown_pixels = sum(1 for r, g, b in pixels if (r > g > b) and (r-b > 30))
+        light_pixels = sum(1 for r, g, b in pixels if all(x > 200 for x in (r, g, b)))
+        
+        # Calculate percentages
+        color_dist = {
+            'red': (red_pixels / num_pixels) * 100,
+            'green': (green_pixels / num_pixels) * 100,
+            'brown': (brown_pixels / num_pixels) * 100,
+            'light': (light_pixels / num_pixels) * 100
         }
         
-        # Calculate color percentages
-        color_percentages = {}
-        total_pixels = hsv.shape[0] * hsv.shape[1]
-        
-        for color, (lower, upper) in color_ranges.items():
-            mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
-            color_pixels = cv2.countNonZero(mask)
-            percentage = (color_pixels / total_pixels) * 100
-            color_percentages[color] = percentage
-            
-        return color_percentages
+        return color_dist
 
-    def is_likely_food(self, img_array):
-        """Basic check if image likely contains food"""
+    def is_likely_food(self, image):
+        """Basic check if image likely contains food using PIL"""
         # Convert to grayscale
-        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        gray_img = image.convert('L')
         
-        # Calculate image statistics
-        std_dev = np.std(gray)
-        mean_val = np.mean(gray)
+        # Calculate basic statistics
+        pixels = list(gray_img.getdata())
+        std_dev = np.std(pixels)
+        mean_val = np.mean(pixels)
         
-        # Images with very low variation or extreme brightness/darkness
-        # are less likely to be food
+        # Basic heuristic for food images
         return std_dev > 20 and 30 < mean_val < 225
 
-    def get_dominant_color_profile(self, color_percentages):
-        """Determine the dominant color profile"""
-        if max(color_percentages.values()) < 10:
-            return 'mixed_colors'
+    def get_dominant_type(self, color_dist):
+        """Determine the dominant food type based on color distribution"""
+        max_color = max(color_dist.items(), key=lambda x: x[1])
         
-        dominant_color = max(color_percentages.items(), key=lambda x: x[1])[0]
-        return f"{dominant_color}_foods"
+        if max_color[1] < 15:  # If no clear dominant color
+            return 'mixed'
+        
+        return f"{max_color[0]}_dominant"
 
     def analyze_image(self, image):
         """Analyze food image and return nutritional information"""
         try:
-            # Convert PIL image to numpy array
-            img_array = np.array(image)
-            
             # Check if image likely contains food
-            if not self.is_likely_food(img_array):
+            if not self.is_likely_food(image):
                 return {
                     "error": "No food detected in image",
                     "details": "Image doesn't appear to contain food"
                 }
             
             # Analyze colors
-            color_percentages = self.analyze_colors(img_array)
+            color_dist = self.analyze_colors(image)
             
             # Get food type based on color profile
-            food_type = self.get_dominant_color_profile(color_percentages)
+            food_type = self.get_dominant_type(color_dist)
             
             # Get nutritional information
             food_info = self.food_database[food_type].copy()
             
             # Add analysis metadata
             food_info.update({
-                "color_distribution": {k: f"{v:.1f}%" for k, v in color_percentages.items()},
+                "color_distribution": {k: f"{v:.1f}%" for k, v in color_dist.items()},
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             })
             
@@ -168,7 +164,7 @@ def process_image(image_data):
         if image.mode != 'RGB':
             image = image.convert('RGB')
         # Standardize size
-        max_size = (800, 800)
+        max_size = (400, 400)  # Reduced size for faster processing
         image.thumbnail(max_size, Image.Resampling.LANCZOS)
         return image
     except Exception as e:
@@ -225,10 +221,10 @@ def display_results(results):
         st.warning(f"Contains: {', '.join(allergens)}")
 
 def main():
-    st.title("🍽️ Simple Food Analyzer")
+    st.title("🍽️ Basic Food Analyzer")
     
-    # Initialize FoodAnalyzer
-    analyzer = SimpleFoodAnalyzer()
+    # Initialize analyzer
+    analyzer = BasicFoodAnalyzer()
     
     # Create tabs for input methods
     tab1, tab2 = st.tabs(["📷 Camera Input", "📤 Upload Image"])
