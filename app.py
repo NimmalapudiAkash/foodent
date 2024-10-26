@@ -2,8 +2,6 @@ import streamlit as st
 from PIL import Image
 import numpy as np
 from datetime import datetime
-import plotly.graph_objects as go
-import plotly.express as px
 from scipy import stats
 
 # Configure Streamlit page with custom CSS
@@ -46,6 +44,16 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
+def format_nutrients(nutrients):
+    """Convert all nutrient values to strings with appropriate units"""
+    formatted = {}
+    for key, value in nutrients.items():
+        if isinstance(value, dict):
+            formatted[key] = {k: f"{v}%" for k, v in value.items()}
+        else:
+            formatted[key] = f"{value}g"
+    return formatted
 
 class AdvancedFoodAnalyzer:
     def __init__(self):
@@ -265,6 +273,9 @@ class AdvancedFoodAnalyzer:
             # Get base food info
             food_info = self.food_database[food_type].copy()
             
+            # Format nutrients
+            food_info['nutrients'] = format_nutrients(food_info['nutrients'])
+            
             # Add enhanced analysis metadata
             food_info.update({
                 "color_distribution": {k: f"{v:.2f}%" for k, v in color_dist.items()},
@@ -281,43 +292,6 @@ class AdvancedFoodAnalyzer:
                 "details": "Please try with a different image",
                 "confidence": 0.0
             }
-
-def create_nutrient_chart(nutrients):
-    """Create an interactive radar chart for nutrients"""
-    categories = list(nutrients.keys())
-    values = list(nutrients.values())
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=values,
-        theta=categories,
-        fill='toself',
-        name='Nutrients'
-    ))
-    
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, max(values) * 1.2]
-            )),
-        showlegend=False,
-        title="Nutrient Distribution"
-    )
-    return fig
-
-def create_color_distribution_chart(color_dist):
-    """Create an interactive pie chart for color distribution"""
-    values = [float(v.strip('%')) for v in color_dist.values()]
-    labels = [k.title() for k in color_dist.keys()]
-    
-    fig = px.pie(
-        values=values,
-        names=labels,
-        title="Color Distribution",
-        color_discrete_sequence=px.colors.qualitative.Set3
-    )
-    return fig
 
 def main():
     st.title("🍽 Advanced Food Analyzer")
@@ -360,9 +334,11 @@ def main():
                     with m3:
                         st.metric("Health Score", f"{results['healthScore']}/100")
                     
-                    # Create charts
-                    st.plotly_chart(create_nutrient_chart(results['nutrients']))
-                    st.plotly_chart(create_color_distribution_chart(results['color_distribution']))
+                    # Show color distribution
+                    st.markdown("##### 🎨 Color Distribution")
+                    for color, percentage in results['color_distribution'].items():
+                        st.write(f"{color.title()}: {percentage}")
+                        st.progress(float(percentage.strip('%')) / 100)
                     
                     # Detailed information in expandable sections
                     with st.expander("🔍 Detailed Analysis"):
@@ -374,9 +350,9 @@ def main():
                             if isinstance(value, dict):
                                 st.write(f"**{nutrient.title()}:**")
                                 for sub_nutrient, sub_value in value.items():
-                                    st.write(f"- {sub_nutrient}: {sub_value}%")
+                                    st.write(f"- {sub_nutrient}: {sub_value}")
                             else:
-                                st.write(f"**{nutrient.title()}:** {value}g")
+                                st.write(f"**{nutrient.title()}:** {value}")
                         
                         st.write("##### Allergen Information")
                         st.write(", ".join(results['allergens']).title())
