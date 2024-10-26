@@ -423,37 +423,36 @@ class AdvancedFoodAnalyzer:
         values = []
         labels = []
         
-    
-    
-    for key, value in list(nutrients.items())[:5]:
-        if isinstance(value, str) and value.rstrip('g').replace('.', '').isdigit():
-            values.append(float(value.rstrip('g')))
-            labels.append(key)
-    
-    if not values:
-        return None
+        for key, value in list(nutrients.items())[:5]:
+            if isinstance(value, str) and value.rstrip('g').replace('.', '').isdigit():
+                values.append(float(value.rstrip('g')))
+                labels.append(key)
         
-    fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=values,
-        theta=labels,
-        fill='toself',
-        name='Nutrients'
-    ))
-    
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, max(values) * 1.2]
-            )
-        ),
-        showlegend=False,
-        margin=dict(t=30, b=30),
-        height=400
-    )
-    
-    return fig
+        if not values:
+            return None
+            
+        fig = go.Figure()
+        fig.add_trace(go.Scatterpolar(
+            r=values,
+            theta=labels,
+            fill='toself',
+            name='Nutrients'
+        ))
+        
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    visible=True,
+                    range=[0, max(values) * 1.2]
+                )
+            ),
+            showlegend=False,
+            margin=dict(t=30, b=30),
+            height=400
+        )
+        
+        return fig
+   
 def main():
     st.title("🍽 AI Food Analyzer Pro")
     st.markdown("### Intelligent Food Analysis & Nutrition Insights")
