@@ -420,8 +420,10 @@ class AdvancedFoodAnalyzer:
         return insights
 
     def create_nutrient_radar_chart(self, nutrients):
-    values = []
-    labels = []
+        values = []
+        labels = []
+        
+    
     
     for key, value in list(nutrients.items())[:5]:
         if isinstance(value, str) and value.rstrip('g').replace('.', '').isdigit():
