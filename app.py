@@ -121,11 +121,107 @@ class AdvancedFoodAnalyzer:
                 'preparation_time': '30-45 mins',
                 'cooking_method': ['Grilling', 'Baking', 'Pan-frying'],
                 'dietary_tags': ['High-protein', 'Gluten-free']
-            },
-            # ... [Previous database entries remain the same]
+            }
         }
+
+    def analyze_image(self, image):
+        """
+        Analyze food image and return nutritional information
         
-        # Add more sophisticated food categories here...
+        Args:
+            image (PIL.Image): Input image to analyze
+            
+        Returns:
+            dict: Analysis results including nutritional information
+        """
+        try:
+            # Convert image to numpy array
+            img_array = np.array(image)
+            
+            # Basic color analysis
+            # Convert to RGB if image is in RGBA
+            if len(img_array.shape) == 3 and img_array.shape[-1] == 4:
+                img_array = img_array[:,:,:3]
+            elif len(img_array.shape) == 2:  # Handle grayscale images
+                img_array = np.stack((img_array,) * 3, axis=-1)
+                
+            # Calculate color distribution
+            pixels = img_array.reshape(-1, 3)
+            
+            # Simple color categorization
+            def categorize_color(pixel):
+                r, g, b = pixel
+                
+                if max(r, g, b) < 30:
+                    return 'black'
+                elif min(r, g, b) > 225:
+                    return 'white'
+                elif r > max(g, b) + 20:
+                    return 'red'
+                elif g > max(r, b) + 20:
+                    return 'green'
+                elif b > max(r, g) + 20:
+                    return 'blue'
+                elif abs(r - g) < 20 and abs(g - b) < 20 and abs(r - b) < 20:
+                    return 'gray'
+                elif r > 150 and g > 150:
+                    return 'yellow'
+                else:
+                    return 'brown'
+                    
+            color_counts = {}
+            total_pixels = len(pixels)
+            
+            for pixel in pixels:
+                color = categorize_color(pixel)
+                color_counts[color] = color_counts.get(color, 0) + 1
+                
+            color_distribution = {
+                color: f"{(count/total_pixels * 100):.1f}%"
+                for color, count in color_counts.items()
+            }
+            
+            # Determine dominant color
+            dominant_color = max(color_counts.items(), key=lambda x: x[1])[0]
+            
+            # Map dominant color to food type from database
+            food_info = self.food_database.get(f'{dominant_color}_dominant', self.food_database['red_dominant'])
+            
+            # Format nutrients with units
+            formatted_nutrients = {
+                'protein': f"{food_info['nutrients']['protein']}g",
+                'carbs': f"{food_info['nutrients']['carbs']}g",
+                'fat': f"{food_info['nutrients']['fat']}g",
+                'fiber': f"{food_info['nutrients']['fiber']}g",
+                'sugar': f"{food_info['nutrients']['sugar']}g",
+                'sodium': f"{food_info['nutrients']['sodium']}mg"
+            }
+            
+            # Add vitamins and minerals to formatted nutrients
+            formatted_nutrients['vitamins'] = food_info['nutrients']['vitamins']
+            formatted_nutrients['minerals'] = food_info['nutrients']['minerals']
+            
+            # Compile results
+            results = {
+                'name': food_info['name'],
+                'calories': food_info['calories'],
+                'nutrients': formatted_nutrients,
+                'allergens': food_info['allergens'],
+                'healthScore': food_info['healthScore'],
+                'sustainability_score': food_info['sustainability_score'],
+                'preparation_time': food_info['preparation_time'],
+                'cooking_method': food_info['cooking_method'],
+                'color_distribution': color_distribution
+            }
+            
+            return results
+            
+        except Exception as e:
+            st.error(f"Error analyzing image: {str(e)}")
+            return {
+                "error": "Error analyzing image",
+                "details": str(e)
+            }
 
     def generate_nutrition_insights(self, food_info):
         """Generate personalized nutrition insights based on analysis"""
@@ -151,23 +247,32 @@ class AdvancedFoodAnalyzer:
         
         # Calculate balance score
         total_nutrients = protein + float(food_info['nutrients']['carbs'].rstrip('g'))
-        balance_score = abs(0.5 - (protein / total_nutrients)) * 100
-        
-        if balance_score < 20:
-            insights.append({
-                'type': 'positive',
-                'icon': '⚖️',
-                'message': 'Well-balanced macronutrient profile'
-            })
+        if total_nutrients > 0:  # Avoid division by zero
+            balance_score = abs(0.5 - (protein / total_nutrients)) * 100
+            
+            if balance_score < 20:
+                insights.append({
+                    'type': 'positive',
+                    'icon': '⚖️',
+                    'message': 'Well-balanced macronutrient profile'
+                })
         
         return insights
 
     def create_nutrient_radar_chart(self, nutrients):
         """Create an interactive radar chart for nutrient distribution"""
         # Extract nutrient values and convert to numeric
-        values = [float(v.rstrip('g')) for v in list(nutrients.values())[:5]]
-        labels = list(nutrients.keys())[:5]
+        values = []
+        labels = []
         
+        for key, value in list(nutrients.items())[:5]:  # Take first 5 nutrients
+            if isinstance(value, str) and value.rstrip('g').replace('.', '').isdigit():
+                values.append(float(value.rstrip('g')))
+                labels.append(key)
+        
+        if not values:  # Handle case where no valid numeric values are found
+            return None
+            
         fig = go.Figure()
         fig.add_trace(go.Scatterpolar(
             r=values,
@@ -187,104 +292,6 @@ class AdvancedFoodAnalyzer:
         )
         
         return fig
-
-    # ... [Previous analysis methods remain the same]
-def analyze_image(self, image):
-    """
-    Analyze food image and return nutritional information
-    
-    Args:
-        image (PIL.Image): Input image to analyze
-        
-    Returns:
-        dict: Analysis results including nutritional information
-    """
-    try:
-        # Convert image to numpy array
-        img_array = np.array(image)
-        
-        # Basic color analysis
-        # Convert to RGB if image is in RGBA
-        if img_array.shape[-1] == 4:
-            img_array = img_array[:,:,:3]
-            
-        # Calculate color distribution
-        pixels = img_array.reshape(-1, 3)
-        
-        # Simple color categorization
-        def categorize_color(pixel):
-            r, g, b = pixel
-            
-            if max(r, g, b) < 30:
-                return 'black'
-            elif min(r, g, b) > 225:
-                return 'white'
-            elif r > max(g, b) + 20:
-                return 'red'
-            elif g > max(r, b) + 20:
-                return 'green'
-            elif b > max(r, g) + 20:
-                return 'blue'
-            elif abs(r - g) < 20 and abs(g - b) < 20 and abs(r - b) < 20:
-                return 'gray'
-            elif r > 150 and g > 150:
-                return 'yellow'
-            else:
-                return 'brown'
-                
-        color_counts = {}
-        total_pixels = len(pixels)
-        
-        for pixel in pixels:
-            color = categorize_color(pixel)
-            color_counts[color] = color_counts.get(color, 0) + 1
-            
-        color_distribution = {
-            color: f"{(count/total_pixels * 100):.1f}%"
-            for color, count in color_counts.items()
-        }
-        
-        # Determine dominant color
-        dominant_color = max(color_counts.items(), key=lambda x: x[1])[0]
-        
-        # Map dominant color to food type from database
-        if dominant_color in ['red']:
-            food_info = self.food_database['red_dominant']
-        else:
-            # Default case if color not recognized
-            food_info = self.food_database['red_dominant']  # Using as default for example
-        
-        # Format nutrients with units
-        formatted_nutrients = {
-            'protein': f"{food_info['nutrients']['protein']}g",
-            'carbs': f"{food_info['nutrients']['carbs']}g",
-            'fat': f"{food_info['nutrients']['fat']}g",
-            'fiber': f"{food_info['nutrients']['fiber']}g",
-            'sugar': f"{food_info['nutrients']['sugar']}g",
-            'vitamins': food_info['nutrients']['vitamins'],
-            'minerals': food_info['nutrients']['minerals']
-        }
-        
-        # Compile results
-        results = {
-            'name': food_info['name'],
-            'calories': food_info['calories'],
-            'nutrients': formatted_nutrients,
-            'allergens': food_info['allergens'],
-            'healthScore': food_info['healthScore'],
-            'sustainability_score': food_info['sustainability_score'],
-            'preparation_time': food_info['preparation_time'],
-            'cooking_method': food_info['cooking_method'],
-            'color_distribution': color_distribution
-        }
-        
-        return results
-        
-    except Exception as e:
-        return {
-            "error": "Error analyzing image",
-            "details": str(e)
-        }
 def main():
     st.title("🍽 AI Food Analyzer Pro")
     st.markdown("### Intelligent Food Analysis & Nutrition Insights")
