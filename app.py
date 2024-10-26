@@ -379,6 +379,8 @@ class AdvancedFoodAnalyzer:
         
         return fig
 
+# [Previous imports and styles remain the same until the main() function]
+
 def main():
     st.title("🍽 AI Food Analyzer Pro")
     st.markdown("### Intelligent Food Analysis & Nutrition Insights with Chat")
@@ -391,8 +393,9 @@ def main():
     
     if 'current_food_info' not in st.session_state:
         st.session_state.current_food_info = None
-    
-    # [Previous sidebar code remains the same...]
+
+    if 'user_input' not in st.session_state:
+        st.session_state.user_input = ""
     
     # Main content area with three columns
     col1, col2, col3 = st.columns([1, 1.2, 0.8])
@@ -419,8 +422,23 @@ def main():
                 if "error" in results:
                     st.error(results["error"])
                 else:
-                    # [Previous analysis display code remains the same...]
-                    pass
+                    st.markdown("### 📊 Analysis Results")
+                    
+                    # Display food name and health score
+                    st.markdown(f"**Detected Food:** {results['name']}")
+                    health_score = results['healthScore']
+                    score_color = (
+                        "health-score-high" if health_score >= 80
+                        else "health-score-medium" if health_score >= 60
+                        else "health-score-low"
+                    )
+                    st.markdown(f"**Health Score:** <span class='{score_color}'>{health_score}/100</span>", 
+                              unsafe_allow_html=True)
+                    
+                    # Display nutrient chart
+                    st.markdown("#### Nutrient Distribution")
+                    fig = analyzer.create_nutrient_chart(results['nutrients'])
+                    st.plotly_chart(fig, use_container_width=True)
     
     with col3:
         st.markdown("### 💬 Chat with AI")
@@ -436,25 +454,29 @@ def main():
         
         # Chat input
         if st.session_state.current_food_info:
-            user_input = st.text_input("Ask me anything about this food!", key="chat_input")
-            
-            if user_input:
-                # Add user message to chat
-                st.session_state.chat_messages.append({"role": "user", "content": user_input})
+            # Create a form for chat input
+            with st.form(key='chat_form'):
+                user_input = st.text_input("Ask me anything about this food!", 
+                                         key="chat_input",
+                                         value=st.session_state.user_input)
+                submit_button = st.form_submit_button("Send")
                 
-                # Generate and add AI response
-                ai_response = analyzer.generate_chat_response(user_input, st.session_state.current_food_info)
-                st.session_state.chat_messages.append({"role": "assistant", "content": ai_response})
-                
-                # Rerun to update chat display
-                st.experimental_rerun()
+                if submit_button and user_input:
+                    # Add user message to chat
+                    st.session_state.chat_messages.append({"role": "user", "content": user_input})
+                    
+                    # Generate and add AI response
+                    ai_response = analyzer.generate_chat_response(user_input, st.session_state.current_food_info)
+                    st.session_state.chat_messages.append({"role": "assistant", "content": ai_response})
+                    
+                    # Clear input
+                    st.session_state.user_input = ""
         else:
             st.info("Upload or take a picture of food to start chatting!")
         
         # Clear chat button
         if st.button("Clear Chat"):
             st.session_state.chat_messages = []
-            st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
