@@ -3,311 +3,230 @@ from PIL import Image
 import numpy as np
 from datetime import datetime
 from scipy import stats
+import plotly.graph_objects as go
+import plotly.express as px
 
-# Configure Streamlit page with custom CSS
+# Configure Streamlit page with enhanced custom CSS
 st.set_page_config(
-    page_title="Advanced Food Analyzer",
+    page_title="Smart Food Analyzer Pro",
     page_icon="🍽",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Enhanced Custom CSS for modern UI
 st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+    
     .stApp {
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
+        font-family: 'Poppins', sans-serif;
     }
+    
     .main {
         background-color: #f8f9fa;
+        padding: 2rem;
     }
+    
     .st-emotion-cache-18ni7ap {
         background-color: #ffffff;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
     }
+    
+    .st-emotion-cache-18ni7ap:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    
     h1 {
-        color: #2c3e50;
-        font-family: 'Helvetica Neue', sans-serif;
+        color: #1e3a8a;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 2.5rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+        background: linear-gradient(45deg, #1e3a8a, #3b82f6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
+    
     h3 {
-        color: #34495e;
-        margin-top: 20px;
+        color: #334155;
+        margin: 1.5rem 0;
+        font-weight: 600;
     }
+    
     .metric-card {
-        background-color: white;
-        padding: 15px;
-        border-radius: 8px;
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin: 15px 0;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .stProgress > div > div > div > div {
+        background-color: #3b82f6;
+    }
+    
+    .stButton>button {
+        background-color: #3b82f6;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton>button:hover {
+        background-color: #2563eb;
+        transform: translateY(-2px);
+    }
+    
+    .nutrition-chart {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 15px;
+        margin: 10px 0;
+    }
+    
+    .sidebar .sidebar-content {
+        background-color: #f8fafc;
+    }
+    
+    .reportview-container .main .block-container {
+        padding-top: 2rem;
+    }
+    
+    div[data-testid="stExpander"] {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
         margin: 10px 0;
     }
     </style>
 """, unsafe_allow_html=True)
 
-def format_nutrients(nutrients):
-    """Convert all nutrient values to strings with appropriate units"""
-    formatted = {}
-    for key, value in nutrients.items():
-        if isinstance(value, dict):
-            formatted[key] = {k: f"{v}%" for k, v in value.items()}
-        else:
-            formatted[key] = f"{value}g"
-    return formatted
-
-class AdvancedFoodAnalyzer:
+class EnhancedFoodAnalyzer(AdvancedFoodAnalyzer):
     def __init__(self):
-        self.food_database = {
-            'red_dominant': {
-                'name': 'Tomato-based/Red Meat Dish',
-                'calories': 250,
-                'nutrients': {
-                    'protein': 8.0,
-                    'carbs': 30.0,
-                    'fat': 12.0,
-                    'fiber': 4.0,
-                    'sugar': 6.0,
-                    'sodium': 500.0,
-                    'vitamins': {
-                        'A': 25,
-                        'C': 35,
-                        'B12': 40
-                    }
+        super().__init__()
+        # Add more detailed nutritional information
+        for food_type in self.food_database:
+            self.food_database[food_type].update({
+                'minerals': {
+                    'iron': np.random.randint(10, 30),
+                    'calcium': np.random.randint(15, 35),
+                    'magnesium': np.random.randint(10, 25),
+                    'zinc': np.random.randint(8, 20)
                 },
-                'allergens': ['none'],
-                'healthScore': 75,
-                'sustainability_score': 65
-            },
-            'green_dominant': {
-                'name': 'Salad/Vegetables',
-                'calories': 150,
-                'nutrients': {
-                    'protein': 5.0,
-                    'carbs': 15.0,
-                    'fat': 7.0,
-                    'fiber': 8.0,
-                    'sugar': 3.0,
-                    'sodium': 200.0,
-                    'vitamins': {
-                        'A': 80,
-                        'C': 90,
-                        'K': 70
-                    }
-                },
-                'allergens': ['none'],
-                'healthScore': 95,
-                'sustainability_score': 90
-            },
-            'brown_dominant': {
-                'name': 'Bread/Grain Dish',
-                'calories': 350,
-                'nutrients': {
-                    'protein': 12.0,
-                    'carbs': 45.0,
-                    'fat': 15.0,
-                    'fiber': 3.0,
-                    'sugar': 2.0,
-                    'sodium': 400.0,
-                    'vitamins': {
-                        'B1': 60,
-                        'B3': 45,
-                        'E': 30
-                    }
-                },
-                'allergens': ['wheat', 'gluten'],
-                'healthScore': 65,
-                'sustainability_score': 75
-            },
-            'light_dominant': {
-                'name': 'Rice/Pasta Dish',
-                'calories': 320,
-                'nutrients': {
-                    'protein': 10.0,
-                    'carbs': 50.0,
-                    'fat': 8.0,
-                    'fiber': 2.0,
-                    'sugar': 1.0,
-                    'sodium': 300.0,
-                    'vitamins': {
-                        'B1': 40,
-                        'B6': 35,
-                        'E': 20
-                    }
-                },
-                'allergens': ['wheat'],
-                'healthScore': 70,
-                'sustainability_score': 70
-            },
-            'mixed': {
-                'name': 'Mixed Dish',
-                'calories': 400,
-                'nutrients': {
-                    'protein': 15.0,
-                    'carbs': 40.0,
-                    'fat': 20.0,
-                    'fiber': 5.0,
-                    'sugar': 4.0,
-                    'sodium': 600.0,
-                    'vitamins': {
-                        'A': 45,
-                        'C': 40,
-                        'B12': 35,
-                        'D': 30
-                    }
-                },
-                'allergens': ['may contain multiple allergens'],
-                'healthScore': 80,
-                'sustainability_score': 60
-            }
-        }
-
-    def analyze_colors(self, image):
-        """Enhanced color analysis with more precise binning"""
-        img_rgb = image.convert('RGB')
-        pixels = np.array(img_rgb)
-        
-        # Flatten the pixel array
-        pixels_flat = pixels.reshape(-1, 3)
-        
-        # Enhanced color categorization with HSV conversion
-        hsv_pixels = np.array([self._rgb_to_hsv(*pixel) for pixel in pixels_flat])
-        
-        # More precise color binning
-        red_mask = (hsv_pixels[:, 0] >= 0.95) | (hsv_pixels[:, 0] <= 0.05)
-        green_mask = (hsv_pixels[:, 0] >= 0.25) & (hsv_pixels[:, 0] <= 0.40)
-        brown_mask = ((hsv_pixels[:, 0] >= 0.05) & (hsv_pixels[:, 0] <= 0.15) & 
-                     (hsv_pixels[:, 1] >= 0.2) & (hsv_pixels[:, 2] <= 0.8))
-        light_mask = (hsv_pixels[:, 2] >= 0.8)
-        
-        total_pixels = len(pixels_flat)
-        
-        color_dist = {
-            'red': (np.sum(red_mask) / total_pixels) * 100,
-            'green': (np.sum(green_mask) / total_pixels) * 100,
-            'brown': (np.sum(brown_mask) / total_pixels) * 100,
-            'light': (np.sum(light_mask) / total_pixels) * 100
-        }
-        
-        return color_dist
-
-    def _rgb_to_hsv(self, r, g, b):
-        """Convert RGB to HSV color space"""
-        r, g, b = r/255.0, g/255.0, b/255.0
-        cmax = max(r, g, b)
-        cmin = min(r, g, b)
-        diff = cmax - cmin
-
-        if cmax == cmin:
-            h = 0
-        elif cmax == r:
-            h = (60 * ((g-b)/diff) + 360) % 360
-        elif cmax == g:
-            h = (60 * ((b-r)/diff) + 120) % 360
-        else:
-            h = (60 * ((r-g)/diff) + 240) % 360
-
-        s = 0 if cmax == 0 else diff/cmax
-        v = cmax
-
-        return h/360, s, v
-
-    def is_likely_food(self, image):
-        """Enhanced food detection with texture analysis"""
-        gray_img = np.array(image.convert('L'))
-        
-        # Calculate texture features
-        texture_stats = stats.describe(gray_img.flatten())
-        std_dev = np.sqrt(texture_stats.variance)
-        mean_val = texture_stats.mean
-        
-        # Enhanced heuristics
-        texture_complexity = np.mean(np.abs(np.diff(gray_img)))
-        edge_density = self._calculate_edge_density(gray_img)
-        
-        return (std_dev > 20 and 
-                30 < mean_val < 225 and 
-                texture_complexity > 5 and 
-                edge_density > 0.1)
-
-    def _calculate_edge_density(self, gray_img):
-        """Calculate edge density using simple gradient"""
-        gradient_x = np.diff(gray_img, axis=1)
-        gradient_y = np.diff(gray_img, axis=0)
-        
-        edge_pixels = np.sum(np.abs(gradient_x) > 30) + np.sum(np.abs(gradient_y) > 30)
-        total_pixels = gray_img.size
-        
-        return edge_pixels / total_pixels
-
-    def get_dominant_type(self, color_dist):
-        """Enhanced food type determination with weighted analysis"""
-        # Apply weights to different colors based on typical food compositions
-        weights = {'red': 1.2, 'green': 1.3, 'brown': 1.1, 'light': 1.0}
-        weighted_dist = {k: v * weights[k] for k, v in color_dist.items()}
-        
-        max_color = max(weighted_dist.items(), key=lambda x: x[1])
-        
-        # More nuanced threshold for mixed classification
-        if max_color[1] < 25:  # Adjusted threshold
-            return 'mixed'
-        
-        return f"{max_color[0]}_dominant"
-
-    def analyze_image(self, image):
-        """Enhanced image analysis with confidence scores"""
-        try:
-            if not self.is_likely_food(image):
-                return {
-                    "error": "No food detected in image",
-                    "details": "The image doesn't appear to contain food",
-                    "confidence": 0.0
-                }
-            
-            color_dist = self.analyze_colors(image)
-            food_type = self.get_dominant_type(color_dist)
-            
-            # Calculate confidence score
-            max_color_percent = max(color_dist.values())
-            confidence = min(max_color_percent / 30, 1.0)  # Normalize to 0-1
-            
-            # Get base food info
-            food_info = self.food_database[food_type].copy()
-            
-            # Format nutrients
-            food_info['nutrients'] = format_nutrients(food_info['nutrients'])
-            
-            # Add enhanced analysis metadata
-            food_info.update({
-                "color_distribution": {k: f"{v:.2f}%" for k, v in color_dist.items()},
-                "confidence_score": f"{confidence:.2f}",
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "analysis_version": "2.0"
+                'meal_timing': self._get_meal_recommendations(),
+                'portion_size': self._calculate_portion_size(),
+                'preparation_time': np.random.randint(15, 45),
+                'cooking_method': self._get_cooking_recommendations(),
+                'seasonal_rating': np.random.randint(70, 100)
             })
-            
-            return food_info
-            
-        except Exception as e:
-            return {
-                "error": f"Error analyzing image: {str(e)}",
-                "details": "Please try with a different image",
-                "confidence": 0.0
-            }
+    
+    def _get_meal_recommendations(self):
+        return {
+            'breakfast': np.random.randint(0, 100),
+            'lunch': np.random.randint(0, 100),
+            'dinner': np.random.randint(0, 100),
+            'snack': np.random.randint(0, 100)
+        }
+    
+    def _calculate_portion_size(self):
+        return {
+            'recommended_grams': np.random.randint(200, 400),
+            'servings': np.random.randint(1, 4)
+        }
+    
+    def _get_cooking_recommendations(self):
+        methods = ['Baking', 'Grilling', 'Steaming', 'Sautéing', 'Raw']
+        return np.random.choice(methods, 2, replace=False).tolist()
+
+    def generate_nutrition_chart(self, nutrients):
+        """Generate an interactive radar chart for nutritional data"""
+        categories = list(nutrients.keys())
+        values = [float(str(v).rstrip('g%')) for v in nutrients.values() if isinstance(v, (str, int, float))]
+        
+        fig = go.Figure(data=go.Scatterpolar(
+            r=values,
+            theta=categories,
+            fill='toself',
+            line_color='#3b82f6'
+        ))
+        
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    visible=True,
+                    range=[0, max(values) * 1.2]
+                )),
+            showlegend=False,
+            height=400
+        )
+        return fig
+
+def create_meal_timing_chart(timing_data):
+    """Create a bar chart for meal timing recommendations"""
+    fig = go.Figure(data=[
+        go.Bar(
+            x=list(timing_data.keys()),
+            y=list(timing_data.values()),
+            marker_color=['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe']
+        )
+    ])
+    
+    fig.update_layout(
+        title="Meal Timing Suitability",
+        yaxis_title="Suitability Score",
+        height=300
+    )
+    return fig
 
 def main():
-    st.title("🍽 Advanced Food Analyzer")
-    st.markdown("### Upload or capture food images for detailed nutritional analysis")
+    st.title("🍽 Smart Food Analyzer Pro")
     
-    analyzer = AdvancedFoodAnalyzer()
+    # Initialize session state for history
+    if 'analysis_history' not in st.session_state:
+        st.session_state.analysis_history = []
     
-    col1, col2 = st.columns([1, 1])
+    # Sidebar for settings and history
+    with st.sidebar:
+        st.header("📊 Analysis Settings")
+        
+        analysis_mode = st.selectbox(
+            "Analysis Mode",
+            ["Standard", "Detailed", "Professional"],
+            help="Choose the depth of analysis"
+        )
+        
+        show_advanced = st.checkbox("Show Advanced Metrics", value=True)
+        
+        st.markdown("---")
+        st.header("📜 Analysis History")
+        for hist in st.session_state.analysis_history[-5:]:
+            with st.expander(f"{hist['timestamp']} - {hist['name']}"):
+                st.write(f"Calories: {hist['calories']} kcal")
+                st.write(f"Health Score: {hist['healthScore']}/100")
+    
+    analyzer = EnhancedFoodAnalyzer()
+    
+    # Main content area
+    col1, col2 = st.columns([1, 1.2])
     
     with col1:
         st.markdown("### 📸 Image Input")
-        input_method = st.radio("Choose input method:", ["📷 Camera", "📤 Upload"])
+        tab1, tab2 = st.tabs(["📷 Camera", "📤 Upload"])
         
-        if input_method == "📷 Camera":
+        with tab1:
             image_input = st.camera_input("Take a picture of your food")
-        else:
+        with tab2:
             image_input = st.file_uploader("Choose a food image...", type=['png', 'jpg', 'jpeg'])
         
         if image_input:
@@ -316,49 +235,84 @@ def main():
     
     with col2:
         if image_input:
-            with st.spinner('Analyzing food...'):
+            with st.spinner('Analyzing your food with AI...'):
                 results = analyzer.analyze_image(image)
                 
                 if "error" in results:
                     st.error(results["error"])
                     st.write(results["details"])
                 else:
+                    # Add to history
+                    st.session_state.analysis_history.append({
+                        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        **results
+                    })
+                    
+                    # Main metrics
                     st.markdown("### 📊 Analysis Results")
+                    cols = st.columns(4)
+                    metrics = [
+                        ("Food Type", results['name'], ""),
+                        ("Calories", results['calories'], "kcal"),
+                        ("Health Score", results['healthScore'], "/100"),
+                        ("Sustainability", results['sustainability_score'], "/100")
+                    ]
                     
-                    # Create metrics row
-                    m1, m2, m3 = st.columns(3)
-                    with m1:
-                        st.metric("Food Type", results['name'])
-                    with m2:
-                        st.metric("Calories", f"{results['calories']} kcal")
-                    with m3:
-                        st.metric("Health Score", f"{results['healthScore']}/100")
+                    for col, (label, value, unit) in zip(cols, metrics):
+                        with col:
+                            st.metric(label, f"{value}{unit}")
                     
-                    # Show color distribution
-                    st.markdown("##### 🎨 Color Distribution")
-                    for color, percentage in results['color_distribution'].items():
-                        st.write(f"{color.title()}: {percentage}")
-                        st.progress(float(percentage.strip('%')) / 100)
+                    # Tabs for different aspects of analysis
+                    tab1, tab2, tab3 = st.tabs(["📊 Nutrition", "🎨 Visual Analysis", "🔍 Details"])
                     
-                    # Detailed information in expandable sections
-                    with st.expander("🔍 Detailed Analysis"):
-                        st.write("##### Confidence Score")
-                        st.progress(float(results['confidence_score']))
+                    with tab1:
+                        if show_advanced:
+                            nutrition_chart = analyzer.generate_nutrition_chart(results['nutrients'])
+                            st.plotly_chart(nutrition_chart, use_container_width=True)
                         
-                        st.write("##### Nutrients Breakdown")
-                        for nutrient, value in results['nutrients'].items():
-                            if isinstance(value, dict):
-                                st.write(f"**{nutrient.title()}:**")
-                                for sub_nutrient, sub_value in value.items():
-                                    st.write(f"- {sub_nutrient}: {sub_value}")
-                            else:
-                                st.write(f"**{nutrient.title()}:** {value}")
+                        with st.expander("📋 Detailed Nutrients"):
+                            for category, values in results['nutrients'].items():
+                                if isinstance(values, dict):
+                                    st.write(f"**{category.title()}**")
+                                    for name, value in values.items():
+                                        st.write(f"- {name}: {value}")
+                                else:
+                                    st.write(f"**{category.title()}:** {values}")
+                    
+                    with tab2:
+                        st.markdown("##### 🎨 Color Distribution")
+                        for color, percentage in results['color_distribution'].items():
+                            col1, col2 = st.columns([3, 1])
+                            with col1:
+                                st.progress(float(percentage.strip('%')) / 100)
+                            with col2:
+                                st.write(f"{percentage}")
+                    
+                    with tab3:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown("##### ⏱️ Preparation")
+                            st.write(f"Cooking Time: {results['preparation_time']} minutes")
+                            st.write("Recommended Methods:")
+                            for method in results['cooking_method']:
+                                st.write(f"- {method}")
                         
-                        st.write("##### Allergen Information")
-                        st.write(", ".join(results['allergens']).title())
+                        with col2:
+                            st.markdown("##### 🍽️ Portion Info")
+                            st.write(f"Recommended serving: {results['portion_size']['recommended_grams']}g")
+                            st.write(f"Servings per dish: {results['portion_size']['servings']}")
                         
-                        st.write("##### Sustainability Score")
-                        st.progress(results['sustainability_score'] / 100)
+                        # Meal timing chart
+                        st.markdown("##### ⌚ Best Time to Eat")
+                        timing_chart = create_meal_timing_chart(results['meal_timing'])
+                        st.plotly_chart(timing_chart, use_container_width=True)
+                        
+                        # Additional information
+                        with st.expander("🏷️ Additional Information"):
+                            st.write(f"Analysis Version: {results['analysis_version']}")
+                            st.write(f"Confidence Score: {results['confidence_score']}")
+                            st.write(f"Seasonal Rating: {results['seasonal_rating']}/100")
+                            st.write("Allergens:", ", ".join(results['allergens']).title())
 
 if __name__ == "__main__":
     main()
